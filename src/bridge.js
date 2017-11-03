@@ -4,6 +4,10 @@ const config = require('./config');
 const db = require('./db');
 const WebSocket = require('ws');
 const _ = require('lodash');
+const EventEmitter = require('events').EventEmitter;
+const bridgeEvents = new EventEmitter();
+
+let socket;
 
 const register = async () => {
     let players = await db.getPlayer();
@@ -19,24 +23,29 @@ const register = async () => {
             console.log(error)
         }
     }
-    await connect(players[0].registrationID)
+    await connect(players[0].registrationID);
+    bridgeEvents.emit('new-player', {
+        registrationID: players[0].registrationID,
+        message: 'Please use above key to register',
+        event: 'NEWPLAYER'
+    });
 };
 
 const connect = async (registrationID) => {
     console.log('Connecting for registration:' + registrationID);
-    const ws = new WebSocket(`wss://dev.digitalwall.in/socket/websocket?room=${registrationID}`);
+    socket = new WebSocket(`wss://dev.digitalwall.in/socket/websocket?room=${registrationID}`);
 
-    ws.on('open', function open(s) {
+    socket.on('open', function open(s) {
         console.log('Opened')
     });
 
-    ws.on('message', async function incoming(data) {
+    socket.on('message', async function incoming(data) {
         console.log(JSON.stringify(data));
         await db.saveServerEvent(data);
         await processServerEvent(JSON.parse(data));
     });
 
-    ws.on('error', error => {
+    socket.on('error', error => {
         console.log(error);
         setTimeout(exports.connect(registrationID), 5000) //reconnect
     })
@@ -127,12 +136,12 @@ const getCampaignDetails = async (clientID, campaignID, scheduleID = 'NOSCHED', 
         }
     }
     console.log('Creating schedule play times for schedules' + JSON.stringify(futureSchedules));
-    if (futureSchedules)
-        for (let schedule of futureSchedules) {
-            let startTime = schedule.startDate + ' ' + schedule.startTime;
-            let endTime = schedule.endDate + ' ' + schedule.endTime;
-            await createScheduleSplit(scheduleID, startTime, endTime);
-        }
+
+    for (let schedule of futureSchedules) {
+        let startTime = schedule.startDate + ' ' + schedule.startTime;
+        let endTime = schedule.endDate + ' ' + schedule.endTime;
+        await createScheduleSplit(scheduleID, startTime, endTime);
+    }
 };
 
 const getScheduleDetails = async (clientID, scheduleID) => {
@@ -196,4 +205,4 @@ const inheritSchedules = async (clientID, scheduleIDs) => {
 //getScheduleDetails('60mAY-vMp', 'vt_KUpdpM').then(r => console.log(r));
 //exports.getCampaignDetails('60mAY-vMp', 'NryAYzXMp');
 
-module.exports = {connect, getCampaignDetails, getScheduleDetails, register};
+module.exports = {connect, getCampaignDetails, getScheduleDetails, register, bridgeEvents};

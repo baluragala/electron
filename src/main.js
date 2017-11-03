@@ -6,26 +6,33 @@ const {app, ipcMain, BrowserWindow} = require('electron');
 
 const path = require('path');
 const url = require('url');
-const bridge = require('./bridge');
 const {fork} = require('child_process');
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 
 const forkedDownloadManager = fork('./src/downloadManager.js');
 const forkedSyncEngine = fork('./src/syncEngine.js');
+
 /*forked.send({
     fileName: 'abc.mp4',
     downloadUrl: 'http://www.sample-videos.com/video/mp4/720/big_buck_bunny_720p_20mb.mp4'
 });*/
 
+/*
+ipcMain.on('new-player', (event, arg) => {
+    event.sender.send('new-player', arg)
+});
+*/
+
 let mainWindow;
+let webContents;
 
 function createWindow() {
     // Create the browser window.
     mainWindow = new BrowserWindow({width: 600, height: 600});
     //mainWindow.setFullScreen(true);
     mainWindow.setMenu(null);
-
+    webContents = mainWindow.webContents;
     // and load the index.html of the app.
     mainWindow.loadURL(url.format({
         pathname: path.join(__dirname, 'index.html'),
@@ -72,3 +79,10 @@ app.on('activate', function () {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+forkedSyncEngine.on('message', args => {
+    switch (args.event) {
+        case 'NEWPLAYER':
+            webContents.send('new-player', args);
+            break;
+    }
+});
