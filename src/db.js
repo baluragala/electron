@@ -21,11 +21,14 @@ const saveScheduledAsset = scheduledAsset => knex('scheduled_asset').insert(sche
 const saveSchedule = schedule => knex('schedule').insert(schedule);
 const savePlaySchedule = async (scheduleID, playSchedule) => knex(scheduleID).insert(playSchedule);
 
-const updatePlayer = player => knex('player');
+const updatePlayer = player => knex('player').update(player);
 
 const deleteCampaign = campaignID => knex('campaign').where('campaignID', campaignID).del();
 const deleteCampaignChannel = campaignID => knex('campaign_channel').where('campaignID', campaignID).del();
 const deleteScheduledAsset = campaignID => knex('scheduled_asset').where('campaignID', campaignID).del();
+const deleteSchedule = scheduleID => knex('schedule').where('scheduleID', scheduleID).del();
+const dropSchedulePlay = scheduleID => knex.schema.dropTable(scheduleID);
+
 
 const getScheduledAssets = (scheduleID) => knex
     .select('scheduled_asset.scheduleID',
@@ -68,5 +71,7 @@ module.exports = {
     deleteCampaign,
     deleteCampaignChannel,
     deleteScheduledAsset,
-    getPlayer
+    getPlayer,
+    deleteSchedule,
+    dropSchedulePlay
 };

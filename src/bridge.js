@@ -6,34 +6,34 @@ const WebSocket = require('ws');
 const _ = require('lodash');
 
 const register = async () => {
-    let player = await db.getPlayer();
-    console.log(player);
-    if (!player) {
+    let players = await db.getPlayer();
+    console.log(players);
+    if (!players.length) {
         let systemInfo = await api.getSystemInfo();
         try {
             let device = await axios.post(config.registerEndpoint, systemInfo);
             let {registrationID, deviceID} = device.data;
-            player = await db.savePlayer({registrationID, deviceID});
-
+            players = await db.savePlayer({registrationID, deviceID});
+            players = await db.getPlayer();
         } catch (error) {
             console.log(error)
         }
     }
-    return player;
+    await connect(players[0].registrationID)
 };
 
 const connect = async (registrationID) => {
+    console.log('Connecting for registration:' + registrationID);
     const ws = new WebSocket(`wss://dev.digitalwall.in/socket/websocket?room=${registrationID}`);
 
-    ws.on('open', function open() {
+    ws.on('open', function open(s) {
         console.log('Opened')
     });
 
-    ws.on('message', function incoming(data) {
+    ws.on('message', async function incoming(data) {
         console.log(JSON.stringify(data));
-        db.saveServerEvent(data)
-            .then(result => console.log('Log saved'))
-            .catch(error => console.error(error))
+        await db.saveServerEvent(data);
+        await processServerEvent(JSON.parse(data));
     });
 
     ws.on('error', error => {
@@ -42,7 +42,33 @@ const connect = async (registrationID) => {
     })
 };
 
-const getCampaignDetails = async (clientID, campaignID, scheduleID = 'NOSCHED', schedules = []) => {
+const processServerEvent = async (event) => {
+    console.log('Processing server event ' + event);
+    console.log(event.type);
+    let {clientID, orientation, volume, campID, schedules, scheduleID} = event;
+    switch (event.type) {
+        case 'PLAYERCREATED':
+        case 'PLAYERUPDATED':
+            await db.updatePlayer({clientID, orientation, volume});
+            await getCampaignDetails(clientID, campID);
+            await inheritSchedules(clientID, schedules);
+            break;
+        case 'SCHEDULECREATED':
+            await getScheduleDetails(clientID, scheduleID);
+            break;
+        case 'SCHEDULEUPDATED':
+            await db.deleteSchedule(scheduleID);
+            await db.dropSchedulePlay(scheduleID);
+            await getScheduleDetails(clientID, scheduleID);
+            break;
+        case 'SCHEDULEDELETED':
+            await db.deleteSchedule(scheduleID);
+            await db.dropSchedulePlay(scheduleID);
+            break;
+    }
+};
+
+const getCampaignDetails = async (clientID, campaignID, scheduleID = 'NOSCHED', futureSchedules = []) => {
     let headers = {clientID};
     let response = await axios.get(`${config.campaignEndpoint}/${campaignID}`, {headers});
     console.log(JSON.stringify(response.data));
@@ -100,12 +126,13 @@ const getCampaignDetails = async (clientID, campaignID, scheduleID = 'NOSCHED', 
 
         }
     }
-
-    for (let schedule of schedules) {
-        let startTime = schedule.startDate + ' ' + schedule.startTime;
-        let endTime = schedule.endDate + ' ' + schedule.endTime;
-        await createScheduleSplit(scheduleID, startTime, endTime);
-    }
+    console.log('Creating schedule play times for schedules' + JSON.stringify(futureSchedules));
+    if (futureSchedules)
+        for (let schedule of futureSchedules) {
+            let startTime = schedule.startDate + ' ' + schedule.startTime;
+            let endTime = schedule.endDate + ' ' + schedule.endTime;
+            await createScheduleSplit(scheduleID, startTime, endTime);
+        }
 };
 
 const getScheduleDetails = async (clientID, scheduleID) => {
