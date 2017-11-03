@@ -24,13 +24,17 @@
   "dependencies": {
     "axios": "^0.17.0",
     "bluebird": "^3.5.1",
+    "install": "^0.10.1",
     "knex": "^0.13.0",
     "lodash": "^4.17.4",
     "moment": "^2.19.1",
     "moment-timezone": "^0.5.14",
+    "mt-files-downloader": "^0.2.5",
+    "npm": "^5.5.1",
     "rxjs": "^5.5.2",
     "sqlite3": "^3.1.13",
     "websocket": "^1.0.25",
-    "ws": "^3.2.0"
+    "ws": "^3.2.0",
+    "zeltice-mt-downloader": "^1.1.3"
   }
 }

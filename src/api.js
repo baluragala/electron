@@ -41,28 +41,6 @@ const getSystemInfo = async _ => {
     }
 };
 
-
-/*
-def generate_time_series(start, end, assets, last_asset=None):
-
-    while True:
-        if idx >= len(assets):
-          idx = 0
-
-        gen_time = datetime.strptime(gen_time.strftime(
-            '%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S') + timedelta(seconds=(assets[idx][3] // 1000))
-        series.append((gen_time, assets[idx]))
-
-        if gen_time >= end_time:
-            series.pop(len(series) - 1)
-            series.append((end_time, assets[idx]))
-            break
-        idx += 1
-
-    #logging.info(series)
-    return series
-
- */
 const generateTimeSeries = (startTime, endTime, assets) => {
     let start = moment(startTime);
     let end = moment(endTime);
@@ -89,5 +67,18 @@ console.log(generateTimeSeries('2017-11-02 18:00:00', '2017-11-02 18:10:05', [{
     duration: 10000,
     assetID: 1
 }, {duration: 15000, assetID: 2}]));*/
+const downloadAsset = async (filename, url) => {
+    const path = require('path');
+    const fs = require('fs');
+    const mtd = require('zeltice-mt-downloader');
+    if (fs.existsSync(path.join(process.env['HOME'], 'assets', `${filename}.mtd`))) {
+        filename = `${filename}.mtd`;
+        url = null;
+    }
+    let fileSavePath = path.join(process.env['HOME'], 'assets', filename);
+    const downloader = new mtd(fileSavePath, url);
+    await downloader.start()
+};
 
-exports.api = {getSystemInfo, generateTimeSeries};
+//downloadAsset('abc.mp4', 'http://www.sample-videos.com/video/mp4/720/big_buck_bunny_720p_20mb.mp4');
+module.exports = {getSystemInfo, generateTimeSeries, downloadAsset};

@@ -1,20 +1,25 @@
 const axios = require('axios');
-const api = require('./api').api;
+const api = require('./api');
 const config = require('./config');
 const db = require('./db');
 const WebSocket = require('ws');
 const _ = require('lodash');
+
 const register = async () => {
-    let systemInfo = await api.getSystemInfo();
-    try {
-        let device = await axios.post(config.registerEndpoint, systemInfo);
-        let {registrationID, deviceID} = device.data;
-        let player = await db.savePlayer({registrationID, deviceID});
+    let player = await db.getPlayer();
+    console.log(player);
+    if (!player) {
+        let systemInfo = await api.getSystemInfo();
+        try {
+            let device = await axios.post(config.registerEndpoint, systemInfo);
+            let {registrationID, deviceID} = device.data;
+            player = await db.savePlayer({registrationID, deviceID});
 
-    } catch (error) {
-        console.log(error)
+        } catch (error) {
+            console.log(error)
+        }
     }
-
+    return player;
 };
 
 const connect = async (registrationID) => {
@@ -25,6 +30,7 @@ const connect = async (registrationID) => {
     });
 
     ws.on('message', function incoming(data) {
+        console.log(JSON.stringify(data));
         db.saveServerEvent(data)
             .then(result => console.log('Log saved'))
             .catch(error => console.error(error))
@@ -145,7 +151,7 @@ const createScheduleSplit = async (scheduleID, startTime, endTime) => {
     try {
         let assets = await db.getScheduledAssets(scheduleID);
         let allTimeSeries = await api.generateTimeSeries(startTime, endTime, assets);
-        let timeSeries = _.chunk(allTimeSeries,100);
+        let timeSeries = _.chunk(allTimeSeries, 100);
         for (let ts of timeSeries) {
             let result = await db.savePlaySchedule(scheduleID, ts);
         }
@@ -154,7 +160,13 @@ const createScheduleSplit = async (scheduleID, startTime, endTime) => {
     }
 };
 
-getScheduleDetails('60mAY-vMp', 'vt_KUpdpM').then(r => console.log(r));
+const inheritSchedules = async (clientID, scheduleIDs) => {
+    for (let scheduleID of scheduleIDs) {
+        await getScheduleDetails(clientID, scheduleID)
+    }
+};
+
+//getScheduleDetails('60mAY-vMp', 'vt_KUpdpM').then(r => console.log(r));
 //exports.getCampaignDetails('60mAY-vMp', 'NryAYzXMp');
 
-exports.bridge = {connect, getCampaignDetails, getScheduleDetails, register};
+module.exports = {connect, getCampaignDetails, getScheduleDetails, register};

@@ -8,31 +8,26 @@ const knex = require('knex')({
     useNullAsDefault: true
 });
 
-exports.savePlayer = player => knex('player').insert(player);
-exports.saveServerEvent = payload => {
+
+const savePlayer = player => knex('player').insert(player);
+const saveServerEvent = payload => {
     let {type} = JSON.parse(payload);
     return knex('eventlog').insert({event: type, rawResponse: payload});
 };
-exports.saveCampaign = campaign => knex('campaign').insert(campaign);
-exports.saveCampaignChannel = campaignChannel => knex('campaign_channel').insert(campaignChannel);
-exports.saveAsset = asset => knex('asset').insert(asset);
-exports.saveScheduledAsset = scheduledAsset => knex('scheduled_asset').insert(scheduledAsset);
-exports.saveSchedule = schedule => knex('schedule').insert(schedule);
+const saveCampaign = campaign => knex('campaign').insert(campaign);
+const saveCampaignChannel = campaignChannel => knex('campaign_channel').insert(campaignChannel);
+const saveAsset = asset => knex('asset').insert(asset);
+const saveScheduledAsset = scheduledAsset => knex('scheduled_asset').insert(scheduledAsset);
+const saveSchedule = schedule => knex('schedule').insert(schedule);
+const savePlaySchedule = async (scheduleID, playSchedule) => knex(scheduleID).insert(playSchedule);
 
-exports.updatePlayer = player => knex('player');
+const updatePlayer = player => knex('player');
 
-exports.deleteCampaign = campaignID => knex('campaign').where('campaignID', campaignID).del();
-exports.deleteCampaignChannel = campaignID => knex('campaign_channel').where('campaignID', campaignID).del();
-exports.deleteScheduledAsset = campaignID => knex('scheduled_asset').where('campaignID', campaignID).del();
+const deleteCampaign = campaignID => knex('campaign').where('campaignID', campaignID).del();
+const deleteCampaignChannel = campaignID => knex('campaign_channel').where('campaignID', campaignID).del();
+const deleteScheduledAsset = campaignID => knex('scheduled_asset').where('campaignID', campaignID).del();
 
-/*
-select sa.campaignID,a.type,
-'assets/'|| a.assetID ||'.'||replace(downloadUrl, rtrim(downloadUrl, replace(downloadUrl, '.', '' ) ), '') as local_url,
-    sa.duration,sa.animation,sa.scheduleID, a.assetID
-from scheduled_asset sa, asset a where a.assetID=sa.assetID
-and sa.scheduleID=? order by sa.sequence""", (scheduleID,))*/
-
-exports.getScheduledAssets = (scheduleID) => knex
+const getScheduledAssets = (scheduleID) => knex
     .select('scheduled_asset.scheduleID',
         'scheduled_asset.campaignID',
         'asset.type',
@@ -44,7 +39,9 @@ exports.getScheduledAssets = (scheduleID) => knex
     .innerJoin('asset', 'asset.assetID', 'scheduled_asset.assetID')
     .where({'scheduled_asset.scheduleID': scheduleID});
 
-exports.createScheduleTable = (scheduleID) => knex.schema.createTable(scheduleID, table => {
+const getPlayer = () => knex('player').select()
+
+const createScheduleTable = (scheduleID) => knex.schema.createTable(scheduleID, table => {
     table.dateTime('endTime');
     table.string('campaignID');
     table.string('type');
@@ -55,4 +52,21 @@ exports.createScheduleTable = (scheduleID) => knex.schema.createTable(scheduleID
     table.string('assetID');
 });
 
-exports.savePlaySchedule = async (scheduleID, playSchedule) => knex(scheduleID).insert(playSchedule);
+
+module.exports = {
+    savePlayer,
+    savePlaySchedule,
+    saveSchedule,
+    saveScheduledAsset,
+    saveAsset,
+    saveCampaignChannel,
+    saveServerEvent,
+    saveCampaign,
+    createScheduleTable,
+    updatePlayer,
+    getScheduledAssets,
+    deleteCampaign,
+    deleteCampaignChannel,
+    deleteScheduledAsset,
+    getPlayer
+};
